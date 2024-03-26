@@ -1,7 +1,6 @@
-package datasource.dto
+package datasource.model
 
 import java.sql.Timestamp
-import java.util.*
 
 data class Job(
     val id: Int,
