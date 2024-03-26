@@ -1,12 +1,25 @@
 package scheduler
 
-import datasource.JobRepo
-import java.beans.Expression
+import datasource.JobsRepository
+import java.sql.Timestamp
+import java.util.*
+import kotlin.reflect.KFunction
+class SchedulerService(private val jobRepository: JobsRepository) {
 
-class SchedulerService(
-    val jobRepo: JobRepo
-) {
-    fun schedule(cronExpression: Expression, job: () -> Unit) {
-        TODO("обернуть в дто и отправить в сервис, еще проверить передачу джобы в качестве лямбды")
+    fun scheduleJob(
+    executeAt: Timestamp,
+    action: () -> Unit
+    ) {
+        //val method = action.reflect()?.javaMethod
+        //val className = method?.declaringClass?.kotlin?.qualifiedName ?: "UnknownClass"
+        //val methodName = method?.name ?: "UnknownMethod"
+
+        jobRepository.insertJob(scheduleType = "ONE_TIME",
+            scheduleExpression = executeAt.toString(),
+            state = "SCHEDULED",
+            className = "className",
+            methodName = "methodName")
+
+        // TODO: запланировать
     }
 }

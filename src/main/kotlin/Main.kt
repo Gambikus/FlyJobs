@@ -1,7 +1,16 @@
-fun main(args: Array<String>) {
-    println("Hello World!")
+import datasource.JobsRepository
+import datasource.dto.Job
+import java.util.*
 
-    // Try adding program arguments via Run/Debug configuration.
-    // Learn more about running applications: https://www.jetbrains.com/help/idea/running-applications.html.
-    println("Program arguments: ${args.joinToString()}")
+fun main() {
+    val repository = JobsRepository("jdbc:postgresql://localhost:5432/lib_db", "user", "password")
+
+    val jobId = repository.insertJob(scheduleType = "CRON",
+        scheduleExpression = "0 0 * * * ?",
+        state = "SCHEDULED",
+        className = "SomeClass",
+        methodName = "someMethod")
+
+    val jobs = repository.getAllJobs()
+    println(jobs)
 }
