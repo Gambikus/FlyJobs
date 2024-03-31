@@ -119,19 +119,23 @@ class JobsRepository(
 
     fun changeJobState(ids: List<UUID>) {
         connect().use { conn ->
-            val stringIds = ids.joinToString(",") { "?"}
-            println(stringIds)
-            val sql = """
-                UPDATE jobs
-                SET status = 'OLD'
-                WHERE id IN ($stringIds);
-            """.trimIndent()
-            val statement = conn.prepareStatement(sql)
-            for (i in 1..ids.size) {
-                statement.setObject(i, ids[i - 1])
-            }
+            if (ids.isNotEmpty()) {
+                val stringIds = ids.joinToString(",") { "?::uuid" }
+                println(stringIds)
+                val sql = """
+                    UPDATE jobs
+                    SET status = 'OLD'
+                    WHERE id IN ($stringIds);
+                """.trimIndent()
+                val statement = conn.prepareStatement(sql)
+                for (i in ids.indices) {
+                    statement.setObject(i + 1, ids[i])
+                }
 
-            val resultSet = statement.execute()
+                statement.execute() // Это правильный способ выполнить запрос без получения ResultSet
+            } else {
+                println("Список ids пуст.")
+            }
         }
     }
 
