@@ -16,17 +16,48 @@ class JobsRepository(
     private val jobMapper: JobMapper) {
     fun connect(): Connection = DriverManager.getConnection(dbUrl, dbUser, dbPassword)
 
+    init {
+        val init_job = """
+            CREATE TABLE IF NOT EXISTS jobs (
+                id uuid PRIMARY KEY,
+                execute_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                class_name VARCHAR(255) NOT NULL,
+                method_name VARCHAR(255) NOT NULL,
+                status VARCHAR(20)
+            );
+        """.trimIndent()
+
+        val init_job_launch = """
+            CREATE TABLE IF NOT EXISTS job_launch (
+                id SERIAL PRIMARY KEY,
+                job_id uuid,
+                timestamp TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                job_status TEXT NOT NULL
+            );
+        """.trimIndent()
+
+        connect().use { conn ->
+            conn.prepareStatement(init_job).execute()
+            conn.prepareStatement(init_job_launch).execute()
+        }
+    }
     fun insertJob(job: Job): UUID? {
         connect().use { conn ->
             val sql = """
-                INSERT INTO jobs (id, execute_at, class_name, method_name)
-                VALUES (?, ?, ?, ?) RETURNING id;
+                INSERT INTO jobs (id, execute_at, class_name, method_name, status)
+                VALUES (
+                    CAST(? AS uuid),
+                    CAST(? AS timestamp), 
+                    ?, 
+                    ?,
+                    ?) RETURNING id;
             """.trimIndent()
             val statement = conn.prepareStatement(sql)
             statement.setString(1, job.id.toString())
             statement.setString(2, job.executeAt.toString())
             statement.setString(3, job.className)
             statement.setString(4, job.methodName)
+            statement.setString(5, "new")
 
             val resultSet = statement.executeQuery()
             if (resultSet.next()) {
@@ -43,11 +74,12 @@ class JobsRepository(
             val sql = """
                 SELECT *
                 FROM jobs
-                WHERE (execute_at > ? - INTERVAL '1' MINUTE
-                  or execute_at <= ?) and status != 'OLD';
+                WHERE (execute_at >  ?::timestamp - INTERVAL '1' MINUTE
+                  or execute_at <=  ?::timestamp) and status != 'OLD';
             """.trimIndent()
             val statement = conn.prepareStatement(sql)
             statement.setString(1, timestamp.toString())
+            statement.setString(2, timestamp.toString())
 
             val resultSet = statement.executeQuery()
             while (resultSet.next()) {
@@ -65,14 +97,17 @@ class JobsRepository(
     fun saveJobLaunch(jobLaunch: JobLaunch) : Int {
         connect().use { conn ->
             val sql = """
-                INSERT INTO job_launch (job_id, job_status, timestamp, status)
-                VALUES (?, ?, ?) RETURNING id;
+                INSERT INTO job_launch (job_id, job_status, timestamp)
+                VALUES (
+                    CAST(? AS uuid),
+                    ?, 
+                    CAST(? AS timestamp)
+                ) RETURNING id;
             """.trimIndent()
             val statement = conn.prepareStatement(sql)
             statement.setString(1, jobLaunch.jobId.toString())
-            statement.setString(2, jobLaunch.timestamp.toString())
-            statement.setString(3, jobLaunch.jobStatus.toString())
-            statement.setString(4, "new")
+            statement.setString(2, jobLaunch.jobStatus.toString())
+            statement.setString(3, jobLaunch.timestamp.toString())
 
             val resultSet = statement.executeQuery()
             if (resultSet.next()) {
@@ -84,36 +119,20 @@ class JobsRepository(
 
     fun changeJobState(ids: List<UUID>) {
         connect().use { conn ->
-            val stringIds = ids.joinToString(",")
+            val stringIds = ids.joinToString(",") { "?"}
+            println(stringIds)
             val sql = """
                 UPDATE jobs
                 SET status = 'OLD'
                 WHERE id IN ($stringIds);
             """.trimIndent()
             val statement = conn.prepareStatement(sql)
-
-            val resultSet = statement.executeQuery()
-        }
-    }
-
-
-    fun getAllJobs(): List<Map<String, Any>> {
-        connect().use { conn ->
-            val jobsList = mutableListOf<Map<String, Any>>()
-            val sql = "SELECT * FROM jobs;"
-            val statement = conn.createStatement()
-            val resultSet = statement.executeQuery(sql)
-
-            while (resultSet.next()) {
-                val job = mapOf(
-                    "id" to resultSet.getInt("id"),
-                    "executeAt" to resultSet.getTimestamp("execute_at"),
-                    "class_name" to resultSet.getString("class_name"),
-                    "method_name" to resultSet.getString("method_name"),
-                )
-                jobsList.add(job)
+            for (i in 1..ids.size) {
+                statement.setObject(i, ids[i - 1])
             }
-            return jobsList
+
+            val resultSet = statement.execute()
         }
     }
+
 }
