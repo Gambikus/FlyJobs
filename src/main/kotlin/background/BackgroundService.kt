@@ -17,6 +17,11 @@ class BackgroundService(
         val currentTime = Timestamp(System.currentTimeMillis())
 
         val jobs = jobRepo.getNewJobs(currentTime)
+
+        if (jobs.isEmpty()) {
+            return
+        }
+
         val ids = jobs.map(JobLambdaDto::id)
         val u = ::startJobs
         startJobs(jobs)
