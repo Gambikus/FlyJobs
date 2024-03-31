@@ -13,23 +13,27 @@ class JobMapper {
 
     fun dtoToLambdaJob(resultSet: ResultSet): JobLambdaDto {
 
-        val clazz = Class.forName(resultSet.getString("class_name"))
+        val className =resultSet.getString("class_name")
 
-        // Получаем объект метода (для метода без параметров не указываем параметры)
-        // Замените arrayOf(String::class.java, Int::class.java) параметрами Вашего метода соответственно
+        val clazz = Class.forName(className)
+        // Здесь предполагается, что метод не принимает аргументов
+        // Если метод принимает аргументы, необходимо соответствующим образом изменить код ниже
         val method = clazz.getDeclaredMethod(resultSet.getString("method_name"))
+        method.isAccessible = true
+        val instance = Class.forName(className).newInstance()
 
         return JobLambdaDto(
             UUID.fromString(resultSet.getString("id"))
-        ) { method.invoke(null) }
+        ) { method.invoke(instance) }
     }
 
     fun kvalueToDto(job: KFunction<Unit>, executeAt: Timestamp,): Job {
-        val className = job.reflect()?.javaMethod?.declaringClass?.name ?: throw IllegalArgumentException("Wrong class")
-        val methodName = job.name
+        val methodName = job.javaMethod ?: throw IllegalArgumentException("Wrong method")
+        // Получаем имя класса
+        val className = methodName?.declaringClass?.name ?: throw IllegalArgumentException("Wrong class")
 
 
 
-        return Job(id = UUID.randomUUID(), className = className, methodName = methodName, executeAt = executeAt)
+        return Job(id = UUID.randomUUID(), className = className, methodName = methodName.name, executeAt = executeAt)
     }
 }

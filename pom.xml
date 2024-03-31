@@ -73,7 +73,7 @@
                 <configuration>
                     <propertyFile>src/main/resources/db/changelog/liquibase.properties</propertyFile>
                     <changeLogFile>src/main/resources/db/changelog/db.changelog-master.xml</changeLogFile>
-                    <url>jdbc:postgresql://localhost:5432/lib_db</url>
+                    <url>jdbc:postgresql://db:5432/lib_db</url>
                     <username>user</username>
                     <password>password</password>
                 </configuration>
