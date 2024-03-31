@@ -1,15 +1,11 @@
 package datasource.model
 
 import java.sql.Timestamp
+import java.util.UUID
 
 data class Job(
-    val id: Int,
-    val createdAt: Timestamp,
-    val updatedAt: Timestamp,
-    val scheduleType: String,
-    val scheduleExpression: String,
-    val state: String,
+    val id: UUID,
+    val executeAt: Timestamp,
     val className: String,
-    val methodName: String,
-    val retries: Int
+    val methodName: String
 )

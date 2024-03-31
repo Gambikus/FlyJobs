@@ -1,25 +1,21 @@
 package scheduler
 
+import datasource.JobMapper
 import datasource.JobsRepository
 import java.sql.Timestamp
 import java.util.*
 import kotlin.reflect.KFunction
-class SchedulerService(private val jobRepository: JobsRepository) {
+class SchedulerService(
+    private val jobMapper: JobMapper,
+    private val jobRepository: JobsRepository) {
 
     fun scheduleJob(
     executeAt: Timestamp,
-    action: () -> Unit
+    kFunction: KFunction<Unit>
     ) {
-        //val method = action.reflect()?.javaMethod
-        //val className = method?.declaringClass?.kotlin?.qualifiedName ?: "UnknownClass"
-        //val methodName = method?.name ?: "UnknownMethod"
 
-        jobRepository.insertJob(scheduleType = "ONE_TIME",
-            scheduleExpression = executeAt.toString(),
-            state = "SCHEDULED",
-            className = "className",
-            methodName = "methodName")
-
-        // TODO: запланировать
+        jobRepository.insertJob(
+            jobMapper.kvalueToDto(kFunction, executeAt)
+        )
     }
 }
