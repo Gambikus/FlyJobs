@@ -9,7 +9,7 @@ import java.sql.Timestamp
 fun main() {
     val config = FlyJobConfigurator("jdbc:postgresql://localhost:5432/lib_db", "user", "password")
     config.getScheduler().scheduleJob(
-        Timestamp(System.currentTimeMillis()),
+        "*/2 * * * *",
         Second::print
     )
 

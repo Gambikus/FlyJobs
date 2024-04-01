@@ -1,7 +1,6 @@
 package background
 
 import datasource.JobsRepository
-import datasource.model.Job
 import datasource.model.JobLambdaDto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +12,7 @@ import java.sql.Timestamp
 class BackgroundService(
     val jobRepo: JobsRepository
 ) {
-    private fun checkNewJobs() {
+    private fun checkJobsToExecute() {
         val currentTime = Timestamp(System.currentTimeMillis())
 
         val jobs = jobRepo.getNewJobs(currentTime)
@@ -31,7 +30,7 @@ class BackgroundService(
     fun startChecking() = CoroutineScope(Dispatchers.IO).launch {
         while (isActive) {
             try {
-                checkNewJobs()
+                checkJobsToExecute()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -39,9 +38,11 @@ class BackgroundService(
         }
     }
 
-    private fun startJobs(jobs : List<JobLambdaDto>) = CoroutineScope(Dispatchers.IO).launch {
+    private fun startJobs(jobs : List<JobLambdaDto>) {
         jobs.forEach {
-            JobExecutor(it, jobRepo).execute()
+            CoroutineScope(Dispatchers.IO).launch {
+                JobExecutor(it, jobRepo).execute()
+            }
         }
     }
 }
