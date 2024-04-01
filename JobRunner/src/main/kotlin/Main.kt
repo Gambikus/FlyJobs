@@ -11,7 +11,7 @@ fun main() {
     val schedulerService = SchedulerService(jobMapper, repository)
     val backgroundService = BackgroundService(repository)
     schedulerService.scheduleJob(
-        Timestamp(System.currentTimeMillis()),
+        "*/2 * * * *",
         Second::print
     )
 

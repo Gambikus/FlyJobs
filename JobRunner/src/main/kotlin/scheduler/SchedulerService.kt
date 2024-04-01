@@ -18,4 +18,14 @@ class SchedulerService(
             jobMapper.kvalueToDto(kFunction, executeAt)
         )
     }
+
+    fun scheduleJob(
+        cronExpression: String,
+        kFunction: KFunction<Unit>
+    ) {
+
+        jobRepository.insertJob(
+            jobMapper.kvalueToDto(kFunction, executeAt = null, cronExpression = cronExpression)
+        )
+    }
 }

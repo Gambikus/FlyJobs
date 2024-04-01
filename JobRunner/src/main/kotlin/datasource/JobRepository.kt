@@ -3,12 +3,51 @@ package datasource
 import datasource.model.Job
 import datasource.model.JobLambdaDto
 import datasource.model.JobLaunch
-import java.sql.Connection
-import java.sql.DriverManager
-import java.sql.Timestamp
 import java.util.ArrayList
 import java.util.UUID
+import com.cronutils.model.Cron
+import com.cronutils.model.CronType
+import com.cronutils.model.definition.CronDefinitionBuilder
+import com.cronutils.model.time.ExecutionTime
+import com.cronutils.parser.CronParser
+import java.sql.*
+import java.time.ZonedDateTime
 
+fun isJobToExecute(resultSet: ResultSet): Boolean {
+
+    val cronExpression =resultSet.getNullableString("cron_expression")
+
+    if (cronExpression != null && isTimeForCronJob(cronExpression)) {
+        return true
+    }
+    else if (cronExpression == null ){
+        return true
+    }
+
+    return false
+
+}
+fun isTimeForCronJob(cronExpression: String): Boolean {
+    val cronParser = CronParser(CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX))
+    val cron: Cron = cronParser.parse(cronExpression)
+    val executionTime = ExecutionTime.forCron(cron)
+
+    // Получение текущего времени
+    val now = ZonedDateTime.now()
+
+    // Расчет только времени следующего выполнения задачи
+    val nextExecution = executionTime.nextExecution(now.minusSeconds(60))
+
+    println(now)
+    println(nextExecution)
+
+    // Проверка, пришло ли время выполнения задачи
+    // Если следующий запуск задачи запланирован на время, "меньшее или равное" текущему, задача должна быть запущена
+    return nextExecution.isPresent && !now.isBefore(nextExecution.get())
+}
+
+fun ResultSet.getNullableString(columnLabel: String): String? =
+    this.getString(columnLabel)?.let { if (this.wasNull()) null else it }
 class JobsRepository(
     private val dbUrl: String,
     private val dbUser: String,
@@ -20,7 +59,8 @@ class JobsRepository(
         val init_job = """
             CREATE TABLE IF NOT EXISTS jobs (
                 id uuid PRIMARY KEY,
-                execute_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                execute_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NULL,
+                cron_expression VARCHAR(255) DEFAULT NULL,
                 class_name VARCHAR(255) NOT NULL,
                 method_name VARCHAR(255) NOT NULL,
                 status VARCHAR(20)
@@ -44,20 +84,27 @@ class JobsRepository(
     fun insertJob(job: Job): UUID? {
         connect().use { conn ->
             val sql = """
-                INSERT INTO jobs (id, execute_at, class_name, method_name, status)
+                INSERT INTO jobs (id, execute_at, cron_expression, class_name, method_name, status)
                 VALUES (
                     CAST(? AS uuid),
                     CAST(? AS timestamp), 
+                    ?,
                     ?, 
                     ?,
                     ?) RETURNING id;
             """.trimIndent()
             val statement = conn.prepareStatement(sql)
             statement.setString(1, job.id.toString())
-            statement.setString(2, job.executeAt.toString())
-            statement.setString(3, job.className)
-            statement.setString(4, job.methodName)
-            statement.setString(5, "new")
+            statement.setString(3, job.cronExpression)
+            statement.setString(4, job.className)
+            statement.setString(5, job.methodName)
+            statement.setString(6, "new")
+
+            if (job.executeAt != null) {
+                statement.setString(2, job.executeAt.toString()) // executeAt это String или LocalDateTime
+            } else {
+                statement.setNull(2, Types.TIMESTAMP)
+            }
 
             val resultSet = statement.executeQuery()
             if (resultSet.next()) {
@@ -72,22 +119,22 @@ class JobsRepository(
 
         connect().use { conn ->
             val sql = """
-                SELECT *
-                FROM jobs
-                WHERE (execute_at >  ?::timestamp - INTERVAL '1' MINUTE
-                  or execute_at <=  ?::timestamp) and status != 'OLD';
-            """.trimIndent()
+            SELECT *
+            FROM jobs
+            WHERE (execute_at <  ?::timestamp + INTERVAL '1' MINUTE and status != 'OLD') OR cron_expression IS NOT NULL;
+        """.trimIndent()
             val statement = conn.prepareStatement(sql)
             statement.setString(1, timestamp.toString())
-            statement.setString(2, timestamp.toString())
 
             val resultSet = statement.executeQuery()
             while (resultSet.next()) {
-                res.add(
-                    jobMapper.dtoToLambdaJob(
-                        resultSet
+                if (isJobToExecute(resultSet)) {
+                    res.add(
+                        jobMapper.dtoToLambdaJob(
+                            resultSet
+                        )
                     )
-                )
+                }
             }
         }
 
