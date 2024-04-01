@@ -27,13 +27,13 @@ class JobMapper {
         ) { method.invoke(instance) }
     }
 
-    fun kvalueToDto(job: KFunction<Unit>, executeAt: Timestamp,): Job {
+    fun kvalueToDto(job: KFunction<Unit>, executeAt: Timestamp?, cronExpression: String? = null): Job {
         val methodName = job.javaMethod ?: throw IllegalArgumentException("Wrong method")
         // Получаем имя класса
         val className = methodName?.declaringClass?.name ?: throw IllegalArgumentException("Wrong class")
 
 
 
-        return Job(id = UUID.randomUUID(), className = className, methodName = methodName.name, executeAt = executeAt)
+        return Job(id = UUID.randomUUID(), className = className, methodName = methodName.name, executeAt = executeAt, cronExpression = cronExpression)
     }
 }
