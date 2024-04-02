@@ -38,9 +38,6 @@ fun isTimeForCronJob(cronExpression: String): Boolean {
     // Расчет только времени следующего выполнения задачи
     val nextExecution = executionTime.nextExecution(now.minusSeconds(60))
 
-    println(now)
-    println(nextExecution)
-
     // Проверка, пришло ли время выполнения задачи
     // Если следующий запуск задачи запланирован на время, "меньшее или равное" текущему, задача должна быть запущена
     return nextExecution.isPresent && !now.isBefore(nextExecution.get())
@@ -101,7 +98,7 @@ class JobsRepository(
             statement.setString(6, "new")
 
             if (job.executeAt != null) {
-                statement.setString(2, job.executeAt.toString()) // executeAt это String или LocalDateTime
+                statement.setString(2, job.executeAt.toString())
             } else {
                 statement.setNull(2, Types.TIMESTAMP)
             }
@@ -164,7 +161,7 @@ class JobsRepository(
         return 0
     }
 
-    fun changeJobState(ids: List<UUID>) {
+    fun changeJobStatus(ids: List<UUID>) {
         connect().use { conn ->
             if (ids.isNotEmpty()) {
                 val stringIds = ids.joinToString(",") { "?::uuid" }

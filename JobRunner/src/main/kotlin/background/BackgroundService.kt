@@ -21,10 +21,8 @@ class BackgroundService(
             return
         }
 
-        val ids = jobs.map(JobLambdaDto::id)
         val u = ::startJobs
         startJobs(jobs)
-        jobRepo.changeJobState(ids)
     }
 
     fun startChecking() = CoroutineScope(Dispatchers.IO).launch {
@@ -41,7 +39,17 @@ class BackgroundService(
     private fun startJobs(jobs : List<JobLambdaDto>) {
         jobs.forEach {
             CoroutineScope(Dispatchers.IO).launch {
-                JobExecutor(it, jobRepo).execute()
+                var retries = 3
+                var success = JobExecutor(it, jobRepo).execute()
+
+                val ids = jobs.map(JobLambdaDto::id)
+                while (retries > 0 && !success){
+                    retries -= 1
+                    success = JobExecutor(it, jobRepo).execute()
+                }
+
+                jobRepo.changeJobStatus(ids)
+
             }
         }
     }
