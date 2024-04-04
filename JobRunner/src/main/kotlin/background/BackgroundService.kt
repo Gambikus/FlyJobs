@@ -1,5 +1,6 @@
 package background
 
+import alert.AlertService
 import datasource.JobsRepository
 import datasource.model.JobLambdaDto
 import kotlinx.coroutines.CoroutineScope
@@ -10,7 +11,8 @@ import kotlinx.coroutines.launch
 import java.sql.Timestamp
 
 class BackgroundService(
-    val jobRepo: JobsRepository
+    val jobRepo: JobsRepository,
+    val alertService: AlertService
 ) {
     private fun checkJobsToExecute() {
         val currentTime = Timestamp(System.currentTimeMillis())
@@ -40,12 +42,11 @@ class BackgroundService(
         jobs.forEach {
             CoroutineScope(Dispatchers.IO).launch {
                 var retries = 3
-                var success = JobExecutor(it, jobRepo).execute()
+                val executor = JobExecutor(it, jobRepo, alertService)
 
                 val ids = jobs.map(JobLambdaDto::id)
-                while (retries > 0 && !success){
+                while (retries > 0 && !executor.execute()){
                     retries -= 1
-                    success = JobExecutor(it, jobRepo).execute()
                 }
 
                 jobRepo.changeJobStatus(ids)
