@@ -15,7 +15,7 @@ services:
 
   db:
     image: postgres:13
-    container_name: lib_db_container
+    container_name: lib_db_container2
     environment:
       POSTGRES_DB: lib_db
       POSTGRES_USER: user
